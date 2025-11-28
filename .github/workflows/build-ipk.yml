@@ -1,0 +1,56 @@
+name: Build luci-app-watchdog IPK
+
+on:
+  workflow_dispatch:
+
+env:
+  PACKAGE_NAME: luci-app-watchdog
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_BRANCH: v23.05.5
+  ARCH: x86_64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout luci-app-watchdog repo
+      uses: actions/checkout@v4
+
+    - name: Clone OpenWrt source
+      run: |
+        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+
+    - name: Copy luci-app-watchdog into OpenWrt package dir
+      run: |
+        cp -r ./luci-app-watchdog openwrt/package/
+
+    - name: Update feeds and install all
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Set default config for target architecture
+      working-directory: openwrt
+      run: |
+        # 创建默认配置，仅启用你要编译的包
+        echo "CONFIG_TARGET_${{ env.ARCH }}=y" > .config || true
+        echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config || true
+        # 也可用 defconfig、menuconfig 修改更精细
+
+    - name: Prepare build system
+      working-directory: openwrt
+      run: |
+        yes "" | make defconfig
+
+    - name: Compile luci-app-watchdog package
+      working-directory: openwrt
+      run: |
+        make package/${{ env.PACKAGE_NAME }}/compile V=s
+
+    - name: Upload IPK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGE_NAME }}-ipk
+        path: openwrt/bin/packages/*/${{ env.PACKAGE_NAME }}*.ipk
