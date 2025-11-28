@@ -7,7 +7,7 @@ env:
   PACKAGE_NAME: luci-app-watchdog
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v23.05.5
-  ARCH: x86_64
+  TARGET: x86_64_generic   # 你可以根据需要改成其它目标，如 ath79_generic、mipsel_24kc 等
 
 jobs:
   build:
@@ -31,23 +31,26 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Set default config for target architecture
+    - name: Set default config for target and package
       working-directory: openwrt
       run: |
-        # 创建默认配置，仅启用你要编译的包
-        echo "CONFIG_TARGET_${{ env.ARCH }}=y" > .config || true
-        echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config || true
-        # 也可用 defconfig、menuconfig 修改更精细
+        echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
+        echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
 
-    - name: Prepare build system
+    - name: Prepare build system (defconfig)
       working-directory: openwrt
       run: |
         yes "" | make defconfig
 
+    - name: Build toolchain
+      working-directory: openwrt
+      run: |
+        make toolchain/install -j$(nproc)
+
     - name: Compile luci-app-watchdog package
       working-directory: openwrt
       run: |
-        make package/${{ env.PACKAGE_NAME }}/compile V=s
+        make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc)
 
     - name: Upload IPK artifact
       uses: actions/upload-artifact@v4
