@@ -7,7 +7,7 @@ env:
   PACKAGE_NAME: luci-app-watchdog
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v23.05.5
-  TARGET: x86_64_generic   # 你可以根据需要改成其它目标，如 ath79_generic、mipsel_24kc 等
+  TARGET: x86_64_generic
 
 jobs:
   build:
@@ -24,6 +24,10 @@ jobs:
     - name: Copy luci-app-watchdog into OpenWrt package dir
       run: |
         cp -r ./luci-app-watchdog openwrt/package/
+
+    - name: Fix Chinese localization link
+      run: |
+        ln -sf zh_Hans luci-app-watchdog/po/zh-cn
 
     - name: Update feeds and install all
       working-directory: openwrt
