@@ -25,9 +25,7 @@ jobs:
       run: |
         cp -r ./luci-app-watchdog openwrt/package/
 
-    - name: Fix Chinese localization link
-      run: |
-        ln -sf zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn
+    # 这里去掉软链接步骤
 
     - name: Update feeds and install all
       working-directory: openwrt
