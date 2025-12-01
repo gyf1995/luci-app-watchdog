@@ -1,8 +1,3 @@
-#
-# Copyright (C) 2025 sirpdboy herboy2008@gmail.com https://github.com/sirpdboy/luci-app-watchdog
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
-
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-watchdog
@@ -16,6 +11,7 @@ LUCI_TITLE:=LuCI support for watchdog
 LUCI_PKGARCH:=all
 LUCI_DEPENDS:=+watchdog
 
-include $(TOPDIR)/feeds/luci/luci.mk
+# 关键行！！！
+LUCI_NAME:=watchdog
 
-# call BuildPackage - OpenWrt buildroot signature
+include $(TOPDIR)/feeds/luci/luci.mk
