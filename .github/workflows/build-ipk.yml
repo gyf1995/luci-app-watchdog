@@ -21,15 +21,17 @@ jobs:
       run: |
         git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
 
-    - name: Patch feeds to GitHub mirrors (fix URLs with https://)
+    - name: Fix feeds.conf.default with correct GitHub URLs
       working-directory: openwrt
       run: |
-        sed -i 's#git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' feeds.conf.default
-        sed -i 's#git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' feeds.conf.default
-        sed -i 's#git.openwrt.org/feed/routing.git#https://github.com/openwrt-routing/packages.git#g' feeds.conf.default
-        sed -i 's#git.openwrt.org/feed/telephony.git#https://github.com/openwrt/telephony.git#g' feeds.conf.default
+        cat > feeds.conf.default << EOF
+src-git packages https://github.com/openwrt/packages.git
+src-git luci https://github.com/openwrt/luci.git
+src-git routing https://github.com/openwrt-routing/packages.git
+src-git telephony https://github.com/openwrt/telephony.git
+EOF
 
-    - name: Show feeds.conf.default content (for debug)
+    - name: Show feeds.conf.default content
       working-directory: openwrt
       run: cat feeds.conf.default
 
