@@ -29,11 +29,15 @@ jobs:
         sed -i 's#git.openwrt.org/feed/routing.git#https://github.com/openwrt-routing/packages.git#g' feeds.conf.default
         sed -i 's#git.openwrt.org/feed/telephony.git#https://github.com/openwrt/telephony.git#g' feeds.conf.default
 
-    - name: Update and install necessary feeds only
+    - name: Show feeds.conf.default content
+      working-directory: openwrt
+      run: cat feeds.conf.default
+
+    - name: Update and install feeds
       working-directory: openwrt
       run: |
-        ./scripts/feeds update base luci
-        ./scripts/feeds install luci-base
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
 
     - name: Copy package source
       run: |
@@ -50,16 +54,14 @@ jobs:
     - name: Configure build for target & package
       working-directory: openwrt
       run: |
-        echo "CONFIG_TARGET_x86=y" > .config
-        echo "CONFIG_TARGET_x86_64=y" >> .config
+        echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
         echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
         make defconfig
 
     - name: Build luci-app-watchdog only
       working-directory: openwrt
       run: |
-        make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) || \
-        make package/${{ env.PACKAGE_NAME }}/compile V=s
+        make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) || make package/${{ env.PACKAGE_NAME }}/compile V=s
 
     - name: List built IPK files
       run: |
