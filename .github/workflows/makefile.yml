@@ -1,0 +1,54 @@
+name: Build luci‑app‑watchdog for OpenWrt
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Taipei
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Setup OpenWrt build environment
+      run: |
+        # 安装依赖
+        sudo apt-get update
+        sudo apt-get install -y build-essential libncurses-dev gawk git ccache subversion unzip python3
+        # Clone OpenWrt 主源码（根据你希望支持的版本调整 URL / branch / tag）
+        git clone https://github.com/openwrt/openwrt.git openwrt
+        cd openwrt
+        # 如果需要，也可以 checkout 某个 release 分支，如 openwrt-24.10
+        # git checkout openwrt-24.10
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        # 将 luci-app-watchdog 源码放入 package/ 下
+        cp -r ../luci-app-watchdog package/watchdog
+        # （可选）运行 defconfig 或 menuconfig，例如默认选中 luci-app-watchdog
+        # make defconfig
+        # make menuconfig  # 不交互的话，建议提前准备 .config
+
+    - name: Compile luci‑app‑watchdog
+      working-directory: openwrt
+      run: |
+        # 编译单个 package
+        make package/watchdog/luci-app-watchdog/compile V=s
+
+    - name: Archive build output
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: luci-app-watchdog-release
+        path: |
+          openwrt/bin/packages/**/*watchdog*.ipk
+          openwrt/bin/targets/**/*/*.ipk
