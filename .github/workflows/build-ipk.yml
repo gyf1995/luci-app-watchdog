@@ -19,46 +19,49 @@ jobs:
 
     - name: Clone OpenWrt source
       run: |
-        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} \
-          ${{ env.OPENWRT_REPO }} openwrt
+        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+
+    - name: Patch feeds to GitHub mirrors
+      working-directory: openwrt
+      run: |
+        sed -i 's#git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' feeds.conf.default
+        sed -i 's#git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' feeds.conf.default
+        sed -i 's#git.openwrt.org/feed/routing.git#https://github.com/openwrt-routing/packages.git#g' feeds.conf.default
+        sed -i 's#git.openwrt.org/feed/telephony.git#https://github.com/openwrt/telephony.git#g' feeds.conf.default
+
+    - name: Update and install necessary feeds only
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update base luci
+        ./scripts/feeds install luci-base
 
     - name: Copy package source
       run: |
         mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
         cp -r ./luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
 
-    # 修复 po 目录结构，避免循环软链 & 语言丢失
     - name: Fix zh-cn locale
       run: |
         if [ -d openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans ]; then
           rm -rf openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
-          cp -r openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans \
-                openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
+          cp -r openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
         fi
 
-    - name: Update feeds
-      working-directory: openwrt
-      run: |
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
-
-    - name: Config build for target & package
+    - name: Configure build for target & package
       working-directory: openwrt
       run: |
         echo "CONFIG_TARGET_x86=y" > .config
         echo "CONFIG_TARGET_x86_64=y" >> .config
         echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
-
         make defconfig
 
-    # 只构建当前包
-    - name: Build luci-app-watchdog
+    - name: Build luci-app-watchdog only
       working-directory: openwrt
       run: |
         make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) || \
         make package/${{ env.PACKAGE_NAME }}/compile V=s
 
-    - name: List built packages
+    - name: List built IPK files
       run: |
         echo "=== BUILT IPK FILES ==="
         find openwrt/bin/ -name "${{ env.PACKAGE_NAME }}*.ipk" || true
