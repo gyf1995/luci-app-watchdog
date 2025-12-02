@@ -1,0 +1,77 @@
+name: Build luci-app-watchdog IPK
+
+on:
+  workflow_dispatch:
+
+env:
+  PACKAGE_NAME: luci-app-watchdog
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_BRANCH: v23.05.5
+  TARGET: x86_64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout luci-app-watchdog source
+      uses: actions/checkout@v4
+
+    - name: Clone OpenWrt source
+      run: |
+        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+
+    - name: Fix feeds.conf.default with correct GitHub URLs
+      working-directory: openwrt
+      run: |
+        cat > feeds.conf.default << EOF
+src-git packages https://github.com/openwrt/packages.git
+src-git luci https://github.com/openwrt/luci.git
+src-git routing https://github.com/openwrt-routing/packages.git
+src-git telephony https://github.com/openwrt/telephony.git
+EOF
+
+    - name: Show feeds.conf.default content
+      working-directory: openwrt
+      run: cat feeds.conf.default
+
+    - name: Update and install feeds
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Copy package source
+      run: |
+        mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
+        cp -r ./luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
+
+    - name: Fix zh-cn locale
+      run: |
+        if [ -d openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans ]; then
+          rm -rf openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
+          cp -r openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
+        fi
+
+    - name: Configure build for target & package
+      working-directory: openwrt
+      run: |
+        echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
+        echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
+        make defconfig
+
+    - name: Build luci-app-watchdog only
+      working-directory: openwrt
+      run: |
+        make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) || make package/${{ env.PACKAGE_NAME }}/compile V=s
+
+    - name: List built IPK files
+      run: |
+        echo "=== BUILT IPK FILES ==="
+        find openwrt/bin/ -name "${{ env.PACKAGE_NAME }}*.ipk" || true
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGE_NAME }}-ipk
+        path: openwrt/bin/**/${{ env.PACKAGE_NAME }}*.ipk
