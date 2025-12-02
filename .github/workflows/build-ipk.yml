@@ -14,72 +14,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout luci-app-watchdog repo
+    - name: Checkout luci-app-watchdog source
       uses: actions/checkout@v4
 
     - name: Clone OpenWrt source
       run: |
-        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} \
+          ${{ env.OPENWRT_REPO }} openwrt
 
-    - name: Prepare package directory
+    - name: Copy package source
       run: |
         mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
+        cp -r ./luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
 
-    - name: Copy package and fix nested dir
+    # 修复 po 目录结构，避免循环软链 & 语言丢失
+    - name: Fix zh-cn locale
       run: |
-        # 如果有嵌套，提出来
-        if [ -f ./luci-app-watchdog/Makefile ]; then
-          cp -r ./luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
-        elif [ -f ./luci-app-watchdog/luci-app-watchdog/Makefile ]; then
-          cp -r ./luci-app-watchdog/luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
-        else
-          echo "ERROR: Makefile not found"
-          exit 1
+        if [ -d openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans ]; then
+          rm -rf openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
+          cp -r openwrt/package/${{ env.PACKAGE_NAME }}/po/zh_Hans \
+                openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn
         fi
 
-    - name: Show package structure (debug)
-      run: |
-        echo "=== PACKAGE TREE ==="
-        ls -R openwrt/package/${{ env.PACKAGE_NAME }}
-
-    - name: Fix Chinese localization link
-      run: |
-        if [ -d openwrt/package/${{ env.PACKAGE_NAME }}/po ]; then
-          ln -sf zh_Hans openwrt/package/${{ env.PACKAGE_NAME }}/po/zh-cn || true
-        fi
-
-    - name: Update & install feeds
+    - name: Update feeds
       working-directory: openwrt
       run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Generate default config
+    - name: Config build for target & package
       working-directory: openwrt
       run: |
-        echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
-        echo "CONFIG_LUCI_LANG_zh_Hans=y" >> .config
-        echo "CONFIG_PACKAGE_luci=y" >> .config
-        echo "CONFIG_PACKAGE_luci-base=y" >> .config
+        echo "CONFIG_TARGET_x86=y" > .config
+        echo "CONFIG_TARGET_x86_64=y" >> .config
         echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
 
         make defconfig
 
-    - name: Build dependencies (fast)
-      working-directory: openwrt
-      run: |
-        make package/luci/compile -j$(nproc)
-        make package/luci-base/compile -j$(nproc)
-
+    # 只构建当前包
     - name: Build luci-app-watchdog
       working-directory: openwrt
       run: |
-        make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc) || \
+        make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) || \
         make package/${{ env.PACKAGE_NAME }}/compile V=s
 
-    - name: Show built IPK files
+    - name: List built packages
       run: |
-        echo "=== BUILT IPKS ==="
+        echo "=== BUILT IPK FILES ==="
         find openwrt/bin/ -name "${{ env.PACKAGE_NAME }}*.ipk" || true
 
     - name: Upload artifacts
