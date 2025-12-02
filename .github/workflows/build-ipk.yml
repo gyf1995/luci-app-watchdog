@@ -24,10 +24,10 @@ jobs:
     - name: Patch feeds to GitHub mirrors
       working-directory: openwrt
       run: |
-        sed -i '/git.openwrt.org\/project\/luci.git/s#git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' feeds.conf.default
-        sed -i '/git.openwrt.org\/feed\/packages.git/s#git.openwrt.org/feed/packages.git#https://github.com/openwrt/packages.git#g' feeds.conf.default
-        sed -i '/git.openwrt.org\/feed\/routing.git/s#git.openwrt.org/feed/routing.git#https://github.com/openwrt-routing/packages.git#g' feeds.conf.default
-        sed -i '/git.openwrt.org\/feed\/telephony.git/s#git.openwrt.org/feed/telephony.git#https://github.com/openwrt/telephony.git#g' feeds.conf.default
+       sed -i '/git.openwrt.org\/project\/luci.git/s#git.openwrt.org/project/luci.git#github.com/openwrt/luci.git#g' feeds.conf.default
+       sed -i '/git.openwrt.org\/feed\/packages.git/s#git.openwrt.org/feed/packages.git#github.com/openwrt/packages.git#g' feeds.conf.default
+       sed -i '/git.openwrt.org\/feed\/routing.git/s#git.openwrt.org/feed/routing.git#github.com/openwrt-routing/packages.git#g' feeds.conf.default
+       sed -i '/git.openwrt.org\/feed\/telephony.git/s#git.openwrt.org/feed/telephony.git#github.com/openwrt/telephony.git#g' feeds.conf.default
 
 
     - name: Show feeds.conf.default content
