@@ -1,4 +1,4 @@
-name: Build luci-app-watchdog for OpenWrt
+name: Build luci-app-watchdog
 
 on:
   push:
@@ -12,31 +12,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      TZ: Asia/Taipei
-
+      ARCH: x86_64     # 或改為你要的 target, e.g. mips_24kc
+      # 如果你需要支援多架構，可以用 matrix
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4   # 最新稳定版 checkout 插件
+    - name: Checkout source
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-    - name: Setup OpenWrt build environment
+    - name: Clone luci-app-watchdog into package dir
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libncurses-dev gawk git ccache subversion unzip python3
-        git clone https://github.com/openwrt/openwrt.git openwrt
-        cd openwrt
+        git clone https://github.com/sirpdboy/luci-app-watchdog package/watchdog
+        # 若倉庫名稱與 package name 衝突，也可以先刪除舊的 package，再 clone
+
+    - name: Update feeds & install
+      run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        cp -r ../luci-app-watchdog package/watchdog
 
-    - name: Compile luci-app-watchdog
-      working-directory: openwrt
-      run: make package/watchdog/luci-app-watchdog/compile V=s
+    - name: Configure build (defconfig)
+      run: |
+        # 這裡假設你已經有 .config 放在 repo 根目錄
+        cp .config .config
+      # 如果你沒有 .config，你也可以在這裡 echo 一個簡單 config
 
-    - name: Archive build output
-      if: success()
-      uses: actions/upload-artifact@v4  # 最新稳定版 upload-artifact 插件
+    - name: Compile watch-dog package
+      run: |
+        make package/watchdog/luci-app-watchdog/compile V=s
+
+    - name: Upload built package
+      uses: actions/upload-artifact@v3
       with:
-        name: luci-app-watchdog-release
-        path: |
-          openwrt/bin/packages/**/*watchdog*.ipk
-          openwrt/bin/targets/**/*/*.ipk
+        name: luci-app-watchdog-ipk
+        path: bin/packages/**/luci-app-watchdog*.ipk
