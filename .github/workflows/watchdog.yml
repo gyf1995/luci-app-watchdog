@@ -3,8 +3,7 @@ name: Build luci-app-watchdog for x86
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
@@ -26,7 +25,8 @@ jobs:
       run: |
         wget https://downloads.openwrt.org/releases/23.05.3/targets/x86/64/openwrt-sdk-23.05.3-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
         tar -xf openwrt-sdk-*.tar.xz
-        mv openwrt-sdk-* sdk
+        sdk_dir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-*")
+        mv "$sdk_dir" sdk
 
     # ---------------------------
     # Move your package to SDK
