@@ -1,47 +1,76 @@
 name: Build luci-app-watchdog
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
+    branches: 
       - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ARCH: x86_64     # 或改為你要的 target, e.g. mips_24kc
-      # 如果你需要支援多架構，可以用 matrix
+
     steps:
-    - name: Checkout source
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - name: Clone luci-app-watchdog into package dir
+    # -----------------------------
+    # Download OpenWrt SDK
+    # change ARCH if needed
+    # -----------------------------
+    - name: Download OpenWrt SDK
       run: |
-        git clone https://github.com/sirpdboy/luci-app-watchdog package/watchdog
-        # 若倉庫名稱與 package name 衝突，也可以先刪除舊的 package，再 clone
+        wget https://downloads.openwrt.org/releases/23.05.3/targets/x86/64/openwrt-sdk-23.05.3-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+        tar -xf openwrt-sdk-*.tar.xz
+        mv openwrt-sdk-* openwrt-sdk
+        echo "SDK ready"
 
-    - name: Update feeds & install
+    - name: Prepare build environment
       run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libncurses5-dev gawk gettext unzip file libssl-dev
+
+    # -----------------------------
+    # Clone luci-app-watchdog
+    # into OpenWrt SDK
+    # -----------------------------
+    - name: Clone luci-app-watchdog
+      run: |
+        cd openwrt-sdk/package
+        git clone https://github.com/sirpdboy/luci-app-watchdog
+
+    # -----------------------------
+    # Update feeds
+    # -----------------------------
+    - name: Update feeds
+      run: |
+        cd openwrt-sdk
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Configure build (defconfig)
+    # -----------------------------
+    # Configure SDK
+    # -----------------------------
+    - name: Configure SDK
       run: |
-        # 這裡假設你已經有 .config 放在 repo 根目錄
-        cp .config .config
-      # 如果你沒有 .config，你也可以在這裡 echo 一個簡單 config
+        cd openwrt-sdk
+        make defconfig
 
-    - name: Compile watch-dog package
+    # -----------------------------
+    # Build package
+    # -----------------------------
+    - name: Build luci-app-watchdog
       run: |
-        make package/watchdog/luci-app-watchdog/compile V=s
+        cd openwrt-sdk
+        make package/luci-app-watchdog/compile -j$(nproc) V=s
 
-    - name: Upload built package
-      uses: actions/upload-artifact@v3
+    # -----------------------------
+    # Upload artifacts (v4)
+    # -----------------------------
+    - name: Upload IPK artifacts
+      uses: actions/upload-artifact@v4
       with:
         name: luci-app-watchdog-ipk
-        path: bin/packages/**/luci-app-watchdog*.ipk
+        path: |
+          openwrt-sdk/bin/packages/**/*watchdog*.ipk
+          openwrt-sdk/bin/targets/**/*watchdog*.ipk
