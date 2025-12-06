@@ -7,7 +7,8 @@ env:
   PACKAGE_NAME: luci-app-watchdog
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v23.05.5
-  TARGET: x86_64_generic   # 你可以根据需要改成其它目标，如 ath79_generic、mipsel_24kc 等
+  TARGET: x86_64
+  SUBTARGET: generic
 
 jobs:
   build:
@@ -23,12 +24,10 @@ jobs:
 
     - name: Copy luci-app-watchdog source into OpenWrt package dir
       run: |
-      mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
-      cp -r luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
+        mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
+        cp -r luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
 
-
-
-    - name: Update feeds and install all
+    - name: Update feed indexes
       working-directory: openwrt
       run: |
         ./scripts/feeds update -a
@@ -38,6 +37,7 @@ jobs:
       working-directory: openwrt
       run: |
         echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
+        echo "CONFIG_TARGET_${{ env.TARGET }}_${{ env.SUBTARGET }}=y" >> .config
         echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
 
     - name: Prepare build system (defconfig)
@@ -60,4 +60,3 @@ jobs:
       with:
         name: ${{ env.PACKAGE_NAME }}-ipk
         path: openwrt/bin/packages/*/*/${{ env.PACKAGE_NAME }}*.ipk
-
