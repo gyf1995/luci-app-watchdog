@@ -23,7 +23,9 @@ jobs:
 
     - name: Copy luci-app-watchdog into OpenWrt package dir
       run: |
-        cp -r ./luci-app-watchdog openwrt/package/
+         mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
+         cp -r luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
+
 
     - name: Update feeds and install all
       working-directory: openwrt
