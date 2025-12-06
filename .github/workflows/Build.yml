@@ -1,0 +1,63 @@
+name:  luci-app-watchdog IPK
+
+on:
+  workflow_dispatch:  # 手动触发编译
+
+env:
+  PACKAGE_DIR: watchdog  # 插件在OpenWRT源码中的目录名（对应package/watchdog）
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_BRANCH: v24.10  # 适配插件要求的版本（24.10及以上）
+  TARGET: x86_64
+  SUBTARGET: generic
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取插件源码
+        uses: actions/checkout@v4
+
+      - name: 克隆OpenWRT源码
+        run: |
+          git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+
+      - name: 复制插件源码到OpenWRT目录
+        run: |
+          # 确保插件目录结构正确（package/watchdog下包含luci-app-watchdog和watchdog子目录）
+          mkdir -p openwrt/package/${{ env.PACKAGE_DIR }}
+          cp -r ./* openwrt/package/${{ env.PACKAGE_DIR }}/
+
+      - name: 更新OpenWRT feeds
+        working-directory: openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 生成编译配置
+        working-directory: openwrt
+        run: |
+          # 生成目标架构默认配置
+          make defconfig
+          # 启用插件及依赖（luci-app-watchdog依赖watchdog包）
+          echo "CONFIG_PACKAGE_luci-app-watchdog=y" >> .config
+          echo "CONFIG_PACKAGE_watchdog=y" >> .config
+          # 应用配置
+          make defconfig
+
+      - name: 编译工具链（可选，加速后续编译）
+        working-directory: openwrt
+        run: make toolchain/install -j$(nproc)
+
+      - name: 编译插件
+        working-directory: openwrt
+        run: |
+          # 按官方文档指定的路径编译
+          make package/${{ env.PACKAGE_DIR }}/luci-app-watchdog/compile V=s -j$(nproc)
+
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-watchdog-ipk
+          path: |
+            openwrt/bin/packages/*/*/luci-app-watchdog_*.ipk
+            openwrt/bin/packages/*/*/watchdog_*.ipk  # 同时上传依赖包
