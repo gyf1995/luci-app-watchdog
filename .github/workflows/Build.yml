@@ -1,77 +1,93 @@
-name: luci-app-watchdog IPK
+name: Build luci-app-watchdog IPK
 
 on:
   workflow_dispatch:  # 手动触发编译
 
 env:
-  PACKAGE_DIR: watchdog  # 对应package/watchdog目录（与源码克隆路径一致）
+  PACKAGE_DIR: watchdog  # 插件在OpenWRT中的目录名（package/watchdog）
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
-  OPENWRT_BRANCH: main  # 改用存在的开发分支（兼容24.10特性），稳定版可选v23.05.5
-  TARGET: x86_64
-  SUBTARGET: generic
+  OPENWRT_BRANCH: main  # OpenWRT开发分支（兼容24.10+特性），稳定版可换v23.05.5
+  TARGET: x86
+  SUBTARGET: 64  # x86_64对应的正确subtarget（OpenWRT中x86架构的subtarget为64或generic）
+  UBUNTU_DEPS: build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: 安装Ubuntu编译依赖
+        run: |
+          sudo apt update
+          sudo apt install -y ${{ env.UBUNTU_DEPS }}
+
       - name: 拉取插件源码
         uses: actions/checkout@v4
 
-      - name: 克隆OpenWRT源码（带错误处理）
+      - name: 克隆OpenWRT源码（带分支容错）
         run: |
           echo "尝试克隆OpenWRT分支: ${{ env.OPENWRT_BRANCH }}"
           if ! git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt; then
-            echo "分支 ${{ env.OPENWRT_BRANCH }} 不存在，尝试默认分支"
+            echo "分支 ${{ env.OPENWRT_BRANCH }} 不存在，使用默认分支（main）"
             git clone --depth=1 ${{ env.OPENWRT_REPO }} openwrt
           fi
 
-      - name: 复制插件源码到OpenWRT目录（保持结构）
+      - name: 复制插件源码到OpenWRT目录（排除无关文件）
         run: |
-          # 确保目录结构与手动编译一致（参考README的git clone路径）
+          # 确保目标目录存在
           mkdir -p openwrt/package/${{ env.PACKAGE_DIR }}
-          cp -r ./* openwrt/package/${{ env.PACKAGE_DIR }}/
+          # 使用rsync精准复制，排除openwrt、.git、.github等无关目录/文件
+          rsync -av \
+            --exclude='openwrt' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='*.md' \
+            --exclude='LICENSE' \
+            ./* openwrt/package/${{ env.PACKAGE_DIR }}/
           # 验证复制结果
-          echo "检查插件目录结构："
-          ls -la openwrt/package/${{ env.PACKAGE_DIR }}
+          echo "=== 插件目录结构 ==="
+          ls -la openwrt/package/${{ env.PACKAGE_DIR }}/
 
-      - name: 更新OpenWRT feeds并安装依赖
+      - name: 更新OpenWRT Feeds并安装依赖
         working-directory: openwrt
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          # 显式安装插件依赖（参考watchdog/Makefile的DEPENDS）
-          ./scripts/feeds install curl bash
+          # 显式安装插件依赖（curl、bash）
+          ./scripts/feeds install curl bash luci-base
 
       - name: 生成编译配置（适配目标架构）
         working-directory: openwrt
         run: |
           # 生成目标架构默认配置
-          make target/linux/defconfig
-          # 启用插件及依赖（对应luci-app-watchdog和watchdog包）
+          echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
+          echo "CONFIG_TARGET_${{ env.TARGET }}_${{ env.SUBTARGET }}=y" >> .config
+          echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-watchdog=y" >> .config
           echo "CONFIG_PACKAGE_watchdog=y" >> .config
-          # 应用配置并检查缺失依赖
+          # 应用配置并自动补全依赖
           make defconfig
-          # 显示最终配置（便于调试）
-          cat .config | grep -E "luci-app-watchdog|watchdog|curl|bash"
+          # 显示关键配置项（便于调试）
+          echo "=== 关键编译配置 ==="
+          cat .config | grep -E "TARGET_|luci-app-watchdog|watchdog|curl|bash"
 
       - name: 编译工具链（加速插件编译）
         working-directory: openwrt
         run: make toolchain/install -j$(nproc) V=s
 
-      - name: 编译插件（按官方文档路径）
+      - name: 编译插件
         working-directory: openwrt
         run: |
-          # 参考README中的编译命令：make package/watchdog/luci-app-watchdog/compile
+          # 编译插件并输出详细日志
           make package/${{ env.PACKAGE_DIR }}/luci-app-watchdog/compile V=s -j$(nproc)
           # 检查编译产物
-          ls -la openwrt/bin/packages/*/*/ | grep -E "luci-app-watchdog|watchdog"
+          echo "=== 编译产物列表 ==="
+          ls -la bin/packages/${{ env.TARGET }}_${{ env.SUBTARGET }}/*/ | grep -E "luci-app-watchdog|watchdog" || true
 
       - name: 上传编译产物
         uses: actions/upload-artifact@v4
         with:
           name: luci-app-watchdog-ipk-${{ env.TARGET }}-${{ env.SUBTARGET }}
           path: |
-            openwrt/bin/packages/*/*/luci-app-watchdog_*.ipk
-            openwrt/bin/packages/*/*/watchdog_*.ipk
+            openwrt/bin/packages/**/luci-app-watchdog_*.ipk
+            openwrt/bin/packages/**/watchdog_*.ipk
           retention-days: 30  # 产物保留30天
