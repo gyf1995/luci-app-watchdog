@@ -21,10 +21,11 @@ jobs:
       run: |
         git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
 
-    - name: Copy luci-app-watchdog into OpenWrt package dir
+    - name: Copy luci-app-watchdog source into OpenWrt package dir
       run: |
-         mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
-         cp -r luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
+      mkdir -p openwrt/package/${{ env.PACKAGE_NAME }}
+      cp -r luci-app-watchdog/* openwrt/package/${{ env.PACKAGE_NAME }}/
+
 
 
     - name: Update feeds and install all
