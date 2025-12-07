@@ -2,9 +2,6 @@ name: Build luci-app-watchdog
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
 
 env:
   PACKAGE_NAME: luci-app-watchdog
@@ -15,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Source
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Clone ImmortalWrt
       run: |
@@ -29,7 +25,12 @@ jobs:
       run: |
         rm -rf openwrt/package/$PACKAGE_NAME
         mkdir -p openwrt/package/$PACKAGE_NAME
-        cp -r . openwrt/package/$PACKAGE_NAME/
+        cp -r luci-app-watchdog/* openwrt/package/$PACKAGE_NAME/
+
+    - name: Debug list
+      run: |
+        echo "==== PACKAGE DIR CONTENT ===="
+        ls -R openwrt/package/$PACKAGE_NAME
 
     - name: Config
       working-directory: openwrt
@@ -40,23 +41,14 @@ jobs:
     - name: Build
       working-directory: openwrt
       run: |
-        make package/${PACKAGE_NAME}/compile V=s -j$(nproc)
+        make package/${PACKAGE_NAME}/compile -j$(nproc) V=s
 
     - name: Collect IPKs
       run: |
         mkdir -p artifacts
         find openwrt/bin/packages -name "${PACKAGE_NAME}*.ipk" -exec cp {} artifacts/ \;
 
-    - name: Upload IPK to Actions Artifacts
-      uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4
       with:
         name: IPK
         path: artifacts/
-
-    - name: Upload to Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v2
-      with:
-        files: artifacts/*.ipk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
