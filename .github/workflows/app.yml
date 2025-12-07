@@ -1,7 +1,6 @@
 name: Build IPK
 
 on:
-  push:
   workflow_dispatch:
 
 env:
@@ -19,7 +18,7 @@ jobs:
     - name: Prepare SDK
       run: |
         git clone --depth 1 https://github.com/linkease/openwrt-app-actions.git sdk
-        cd sdk
+        cd sdk/scripts
         chmod +x sdk.sh
         ./sdk.sh init
 
@@ -31,7 +30,7 @@ jobs:
 
     - name: Build package
       run: |
-        cd sdk
+        cd sdk/scripts
         chmod +x sdk.sh
         ./sdk.sh build ${PACKAGE_NAME}
 
