@@ -12,28 +12,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Prepare SDK
-        run: |
-          git clone --depth 1 https://github.com/linkease/openwrt-app-actions.git sdk
-          cd sdk
-          ./sdk.sh init
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Add package
-        run: |
-          rm -rf sdk/package/${PACKAGE_NAME}
-          mkdir -p sdk/package/${PACKAGE_NAME}
-          cp -r . sdk/package/${PACKAGE_NAME}/
+    - name: Prepare SDK
+      run: |
+        git clone --depth 1 https://github.com/linkease/openwrt-app-actions.git sdk
+        cd sdk
+        chmod +x sdk.sh
+        ./sdk.sh init
 
-      - name: Build package
-        run: |
-          cd sdk
-          ./sdk.sh build ${PACKAGE_NAME}
+    - name: Add package
+      run: |
+        rm -rf sdk/package/${PACKAGE_NAME}
+        mkdir -p sdk/package/${PACKAGE_NAME}
+        cp -r . sdk/package/${PACKAGE_NAME}/
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ipk
-          path: sdk/bin/packages/**/*.ipk
+    - name: Build package
+      run: |
+        cd sdk
+        chmod +x sdk.sh
+        ./sdk.sh build ${PACKAGE_NAME}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ipk
+        path: sdk/bin/packages/**/*.ipk
