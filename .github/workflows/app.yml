@@ -1,54 +1,39 @@
-name: Build luci-app-watchdog
+name: Build IPK
 
 on:
+  push:
   workflow_dispatch:
 
 env:
   PACKAGE_NAME: luci-app-watchdog
-  SOURCE_REPO: https://github.com/immortalwrt/immortalwrt
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Clone ImmortalWrt
-      run: |
-        git clone --depth=1 $SOURCE_REPO openwrt
-        cd openwrt
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+      - name: Prepare SDK
+        run: |
+          git clone --depth 1 https://github.com/linkease/openwrt-app-actions.git sdk
+          cd sdk
+          ./scripts/prepare.sh
 
-    - name: Inject package
-      run: |
-        rm -rf openwrt/package/$PACKAGE_NAME
-        mkdir -p openwrt/package/$PACKAGE_NAME
-        cp -r luci-app-watchdog/* openwrt/package/$PACKAGE_NAME/
+      - name: Add package
+        run: |
+          rm -rf sdk/package/${PACKAGE_NAME}
+          mkdir -p sdk/package/${PACKAGE_NAME}
+          cp -r . sdk/package/${PACKAGE_NAME}/
 
-    - name: Debug list
-      run: |
-        echo "==== PACKAGE DIR CONTENT ===="
-        ls -R openwrt/package/$PACKAGE_NAME
+      - name: Build package
+        run: |
+          cd sdk
+          ./scripts/build.sh ${PACKAGE_NAME}
 
-    - name: Config
-      working-directory: openwrt
-      run: |
-        echo "CONFIG_PACKAGE_${PACKAGE_NAME}=y" >> .config
-        make defconfig
-
-    - name: Build
-      working-directory: openwrt
-      run: |
-        make package/${PACKAGE_NAME}/compile -j$(nproc) V=s
-
-    - name: Collect IPKs
-      run: |
-        mkdir -p artifacts
-        find openwrt/bin/packages -name "${PACKAGE_NAME}*.ipk" -exec cp {} artifacts/ \;
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: IPK
-        path: artifacts/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk
+          path: sdk/bin/packages/**/*.ipk
