@@ -7,8 +7,7 @@ env:
   PACKAGE_NAME: luci-app-watchdog
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v23.05.5
-  TARGET: x86_64
-  SUBTARGET: generic
+  TARGET: x86_64_generic
 
 jobs:
   build:
@@ -37,18 +36,19 @@ jobs:
       working-directory: openwrt
       run: |
         echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
-        echo "CONFIG_TARGET_${{ env.TARGET }}_${{ env.SUBTARGET }}=y" >> .config
         echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
 
-    - name: Prepare build system (defconfig)
+    - name: Prepare build system
       working-directory: openwrt
       run: |
         yes "" | make defconfig
+        make prepare
 
-    - name: Build toolchain
+    - name: Build toolchain and host tools
       working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc)
+        make host/install -j$(nproc)
 
     - name: Compile luci-app-watchdog package
       working-directory: openwrt
