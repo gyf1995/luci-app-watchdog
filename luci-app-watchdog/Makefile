@@ -50,9 +50,9 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/share/watchdog/api
 	$(CP) ./root/usr/share/watchdog/api/* $(1)/usr/share/watchdog/api/
 	
-	# 安装中文翻译文件（如果有）
-	$(INSTALL_DIR) $(1)/usr/share/luci/i18n
-	$(INSTALL_DATA) ./po/zh-cn/luci-app-watchdog.zh-cn.po $(1)/usr/share/luci/i18n/
+    # 安装中文翻译文件（如果有）
+    $(INSTALL_DIR) $(1)/usr/share/luci/i18n
+    $(INSTALL_DATA) ./po/zh-cn/watchdog.po $(1)/usr/share/luci/i18n/
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
