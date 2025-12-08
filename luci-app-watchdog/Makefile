@@ -10,7 +10,7 @@ LUCI_DEPENDS:=+luci-base +luci-lib-ip +rpcd +luci-compat
 
 PKG_MAINTAINER:=gyf1995
 
-# 指定中文翻译目录
+# 指定中文翻译目录（如果有.po翻译文件）
 LUCI_LANG.zh-cn:=po/zh-cn
 
 include $(TOPDIR)/feeds/luci/luci.mk
@@ -38,13 +38,21 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/share/luci/luci-static/resources/view/watchdog
 	$(CP) ./htdocs/luci-static/resources/view/watchdog/* $(1)/usr/share/luci/luci-static/resources/view/watchdog/
 
-	# 安装json配置文件
-	$(INSTALL_DIR) $(1)/usr/share/luci/luci-static/resources/view/watchdog
-	$(INSTALL_DATA) ./root/usr/share/luci/www/watchdog.json $(1)/usr/share/luci/luci-static/resources/view/watchdog/watchdog.json
+	# 安装菜单json配置
+	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
+	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-watchdog.json $(1)/usr/share/luci/menu.d/
 
-	# 安装中文翻译文件（OpenWrt构建系统会自动转换为.lmo）
+	# 安装 rpcd acl json 配置
+	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
+	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-app-watchdog.json $(1)/usr/share/rpcd/acl.d/
+
+	# 安装 watchdog api 目录下的文件
+	$(INSTALL_DIR) $(1)/usr/share/watchdog/api
+	$(CP) ./root/usr/share/watchdog/api/* $(1)/usr/share/watchdog/api/
+	
+	# 安装中文翻译文件（如果有）
 	$(INSTALL_DIR) $(1)/usr/share/luci/i18n
-	$(INSTALL_DATA) ./po/zh-cn/watchdog.po $(1)/usr/share/luci/i18n/luci-app-watchdog.zh-cn.po
+	$(INSTALL_DATA) ./po/zh-cn/luci-app-watchdog.zh-cn.po $(1)/usr/share/luci/i18n/
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
