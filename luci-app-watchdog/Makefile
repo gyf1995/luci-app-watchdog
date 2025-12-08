@@ -18,6 +18,10 @@ define Package/$(PKG_NAME)/install
 	for po in $(PKG_BUILD_DIR)/po/zh-cn/*.po; do \
 		po2lmo $$po $(1)/usr/share/luci/i18n/$$(basename $$po .po).zh-cn.lmo; \
 	done
+
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci
+	cp -r ./luasrc/* $(1)/usr/lib/lua/luci/
 endef
 
 # call BuildPackage - OpenWrt build system
+$(eval $(call BuildPackage,$(PKG_NAME)))
