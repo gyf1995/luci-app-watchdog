@@ -1,0 +1,60 @@
+name: Build watchdog IPK
+
+on:
+  workflow_dispatch:
+
+env:
+  PACKAGE_NAME: luci-app-watchdog
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_BRANCH: v23.05.5
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Clone OpenWrt source
+      run: |
+        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+
+    - name: Copy package into OpenWrt
+      run: |
+        cp -r ./luci-app-watchdog openwrt/package/
+
+    - name: Fix Chinese symlink
+      run: |
+        ln -sf zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn
+
+    - name: Update feeds
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install luci-base
+
+    - name: Config for building package only
+      working-directory: openwrt
+      run: |
+        cat <<EOF > .config
+CONFIG_PACKAGE_luci-base=y
+CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y
+EOF
+        yes "" | make defconfig
+
+    - name: Build dependencies
+      working-directory: openwrt
+      run: |
+        make toolchain/install -j$(nproc)
+
+    - name: Build IPK
+      working-directory: openwrt
+      run: |
+        make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) V=s
+
+    - name: Upload IPK
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGE_NAME }}-ipk
+        path: openwrt/bin/packages/**/${{ env.PACKAGE_NAME }}*.ipk
