@@ -25,9 +25,11 @@ jobs:
       run: |
         cp -r ./luci-app-watchdog openwrt/package/
 
-    - name: Fix Chinese localization link
+    - name: Fix Chinese localization directory
       run: |
-        ln -sf zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn
+        if [ -d openwrt/package/luci-app-watchdog/po/zh_Hans ]; then \
+          ln -sf ../zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn; \
+        fi
 
     - name: Update feeds and install all
       working-directory: openwrt
@@ -50,6 +52,11 @@ jobs:
       working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc)
+
+    - name: Build po2lmo (luci-base)
+      working-directory: openwrt
+      run: |
+        make package/luci-base/compile V=s -j$(nproc)
 
     - name: Compile luci-app-watchdog package
       working-directory: openwrt
