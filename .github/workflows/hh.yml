@@ -1,4 +1,4 @@
-name: hh IPK
+name: watchdog IPK
 
 on:
   workflow_dispatch:
