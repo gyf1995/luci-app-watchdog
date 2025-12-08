@@ -14,52 +14,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout source
+    - name: Checkout luci-app-watchdog repo
       uses: actions/checkout@v4
 
     - name: Clone OpenWrt source
       run: |
         git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
 
-    - name: Copy package into OpenWrt
+    - name: Copy luci-app-watchdog into OpenWrt package dir
       run: |
         cp -r ./luci-app-watchdog openwrt/package/
 
-    - name: Fix Chinese symlink
+    - name: Fix Chinese localization directory
       run: |
-        ln -sf zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn
+        if [ -d openwrt/package/luci-app-watchdog/po/zh_Hans ]; then
+          ln -sf ../zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn
+        fi
 
-    - name: Update feeds
+    - name: Update feeds and install all
       working-directory: openwrt
       run: |
         ./scripts/feeds update -a
-        ./scripts/feeds install luci-base luci-i18n-base-zh-cn
+        ./scripts/feeds install -a
 
-    - name: Config for building package only
+    - name: Set default config for target and package
       working-directory: openwrt
       run: |
-        cat << 'EOF' > .config
-CONFIG_TARGET_${{ env.TARGET }}=y
-CONFIG_PACKAGE_luci-base=y
-CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y
-CONFIG_ALL_NONSHARED=n
-CONFIG_ALL_KMODS=n
-CONFIG_ALL=n
-EOF
+        echo "CONFIG_TARGET_${{ env.TARGET }}=y" > .config
+        echo "CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y" >> .config
+
+    - name: Prepare build system (defconfig)
+      working-directory: openwrt
+      run: |
         yes "" | make defconfig
 
-    - name: Build dependencies (toolchain)
+    - name: Build toolchain
       working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc)
 
-    - name: Build IPK package
+    - name: Build po2lmo for luci-base (generate .lmo files for i18n)
       working-directory: openwrt
       run: |
-        make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) V=s
+        make package/luci-base/compile V=s -j$(nproc)
+
+    - name: Compile luci-app-watchdog package
+      working-directory: openwrt
+      run: |
+        make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc)
 
     - name: Upload IPK artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGE_NAME }}-ipk
-        path: openwrt/bin/packages/**/${{ env.PACKAGE_NAME }}*.ipk
+        path: openwrt/bin/packages/*/*/${{ env.PACKAGE_NAME }}*.ipk
