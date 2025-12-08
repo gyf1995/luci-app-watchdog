@@ -34,14 +34,17 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install luci-base
 
-   - name: Config for building package only
-  working-directory: openwrt
-  run: |
-    cat <<EOF > .config
+    - name: Config for building package only
+      working-directory: openwrt
+      run: |
+        cat <<EOF > .config
 CONFIG_PACKAGE_luci-base=y
 CONFIG_PACKAGE_${PACKAGE_NAME}=y
+CONFIG_ALL_NONSHARED=n
+CONFIG_ALL_KMODS=n
+CONFIG_ALL=n
 EOF
-    yes "" | make defconfig
+        yes "" | make defconfig
 
     - name: Build dependencies
       working-directory: openwrt
