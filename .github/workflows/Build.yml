@@ -7,6 +7,7 @@ env:
   PACKAGE_NAME: luci-app-watchdog
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v23.05.5
+  TARGET: x86_64_generic
 
 jobs:
   build:
@@ -32,31 +33,32 @@ jobs:
       working-directory: openwrt
       run: |
         ./scripts/feeds update -a
-        ./scripts/feeds install luci-base
+        ./scripts/feeds install luci-base luci-i18n-base-zh-cn
 
     - name: Config for building package only
       working-directory: openwrt
       run: |
-        cat <<EOF > .config
+        cat << 'EOF' > .config
+CONFIG_TARGET_${{ env.TARGET }}=y
 CONFIG_PACKAGE_luci-base=y
-CONFIG_PACKAGE_${PACKAGE_NAME}=y
+CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y
 CONFIG_ALL_NONSHARED=n
 CONFIG_ALL_KMODS=n
 CONFIG_ALL=n
 EOF
         yes "" | make defconfig
 
-    - name: Build dependencies
+    - name: Build dependencies (toolchain)
       working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc)
 
-    - name: Build IPK
+    - name: Build IPK package
       working-directory: openwrt
       run: |
         make package/${{ env.PACKAGE_NAME }}/compile -j$(nproc) V=s
 
-    - name: Upload IPK
+    - name: Upload IPK artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGE_NAME }}-ipk
