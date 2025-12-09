@@ -26,33 +26,38 @@ define Package/$(PKG_NAME)/description
   iStoreOS Watchdog LuCI Application with Chinese localization support.
 endef
 
-
-# ================== 构建 .lmo ==================
-
+# =======================================================
+# 🔥 生成 LMO 翻译文件
+# =======================================================
 define Build/Prepare
 	po2lmo ./po/zh-cn/watchdog.po ./po/zh-cn/watchdog.zh-cn.lmo
 endef
 
+# LuCI 前端不需要编译
 define Build/Compile
 	true
 endef
 
-# ================== 安装文件 ==================
-
 define Package/$(PKG_NAME)/install
+	# 页面资源
 	$(INSTALL_DIR) $(1)/usr/share/luci/luci-static/resources/view/watchdog
 	$(CP) ./htdocs/luci-static/resources/view/watchdog/* $(1)/usr/share/luci/luci-static/resources/view/watchdog/
 
+	# 菜单配置
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-watchdog.json $(1)/usr/share/luci/menu.d/
 
+	# ACL
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-app-watchdog.json $(1)/usr/share/rpcd/acl.d/
 
+	# API
 	$(INSTALL_DIR) $(1)/usr/share/watchdog/api
 	$(CP) ./root/usr/share/watchdog/api/* $(1)/usr/share/watchdog/api/
 
-	# 安装翻译文件
+	# =======================================================
+	# 🔥 安装 LMO 翻译文件
+	# =======================================================
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
 	$(INSTALL_DATA) ./po/zh-cn/watchdog.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
 endef
