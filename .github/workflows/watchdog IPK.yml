@@ -1,0 +1,76 @@
+name:  watchdog IPK
+
+on:
+  workflow_dispatch:
+
+env:
+  PACKAGE_NAME: luci-app-watchdog
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_BRANCH: v23.05.5
+  TARGET: x86_64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout luci-app-watchdog repo
+      uses: actions/checkout@v4
+
+    - name: Clone OpenWrt source
+      run: |
+        git clone --depth=1 --branch ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
+
+    - name: Copy luci-app-watchdog into OpenWrt package directory
+      run: |
+        cp -r luci-app-watchdog openwrt/package/
+
+    - name: Fix Chinese localization naming
+      run: |
+        if [ -d openwrt/package/luci-app-watchdog/po/zh_Hans ]; then
+          rm -rf openwrt/package/luci-app-watchdog/po/zh-cn
+          ln -sf ../zh_Hans openwrt/package/luci-app-watchdog/po/zh-cn
+        fi
+
+    - name: Update feeds
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Generate default .config
+      working-directory: openwrt
+      run: |
+        rm -f .config
+        cat >> .config <<EOF
+        CONFIG_TARGET_${{ env.TARGET }}=y
+        CONFIG_TARGET_${{ env.TARGET }}_generic=y
+        CONFIG_PACKAGE_${{ env.PACKAGE_NAME }}=y
+        EOF
+
+    - name: Defconfig
+      working-directory: openwrt
+      run: |
+        yes "" | make defconfig
+
+    - name: Build toolchain
+      working-directory: openwrt
+      run: |
+        make toolchain/install -j$(nproc)
+
+    - name: Compile luci-base (to generate po2lmo)
+      working-directory: openwrt
+      run: |
+        make package/luci-base/compile V=s -j$(nproc)
+
+    - name: Compile luci-app-watchdog
+      working-directory: openwrt
+      run: |
+        make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc)
+
+    - name: Upload IPK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGE_NAME }}-ipk
+        path: |
+          openwrt/bin/packages/*/*/${{ env.PACKAGE_NAME }}*.ipk
