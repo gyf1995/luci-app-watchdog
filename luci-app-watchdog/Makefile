@@ -10,9 +10,6 @@ LUCI_DEPENDS:=+luci-base +luci-lib-ip +rpcd +luci-compat
 
 PKG_MAINTAINER:=gyf1995
 
-# 指定中文翻译目录
-LUCI_LANG.zh-cn:=po/zh-cn
-
 include $(TOPDIR)/feeds/luci/luci.mk
 
 define Package/$(PKG_NAME)
@@ -26,33 +23,38 @@ define Package/$(PKG_NAME)
 endef
 
 define Package/$(PKG_NAME)/description
-iStoreOS Watchdog LuCI Application with Chinese localization support.
+  iStoreOS Watchdog LuCI Application with Chinese localization support.
+endef
+
+
+# ================== 构建 .lmo ==================
+
+define Build/Prepare
+	po2lmo ./po/zh-cn/watchdog.po ./po/zh-cn/watchdog.zh-cn.lmo
 endef
 
 define Build/Compile
 	true
 endef
 
-define Package/$(PKG_NAME)/install
-	# 安装网页静态资源
-	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/watchdog
-	$(CP) ./htdocs/luci-static/resources/view/watchdog/* $(1)/www/luci-static/resources/view/watchdog/
+# ================== 安装文件 ==================
 
-	# 安装菜单 json 配置
+define Package/$(PKG_NAME)/install
+	$(INSTALL_DIR) $(1)/usr/share/luci/luci-static/resources/view/watchdog
+	$(CP) ./htdocs/luci-static/resources/view/watchdog/* $(1)/usr/share/luci/luci-static/resources/view/watchdog/
+
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-watchdog.json $(1)/usr/share/luci/menu.d/
 
-	# 安装 rpcd acl json 配置
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-app-watchdog.json $(1)/usr/share/rpcd/acl.d/
 
-	# 安装 watchdog api 目录
 	$(INSTALL_DIR) $(1)/usr/share/watchdog/api
 	$(CP) ./root/usr/share/watchdog/api/* $(1)/usr/share/watchdog/api/
 
-	# 安装中文翻译文件
-	$(INSTALL_DIR) $(1)/usr/share/luci/i18n
-	$(INSTALL_DATA) ./po/zh-cn/watchdog.po $(1)/usr/share/luci/i18n/
+	# 安装翻译文件
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
+	$(INSTALL_DATA) ./po/zh-cn/watchdog.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
