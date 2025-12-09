@@ -4,46 +4,22 @@ PKG_NAME:=luci-app-watchdog
 PKG_VERSION:=1.0
 PKG_RELEASE:=1
 
-LUCI_TITLE:=iStoreOS Watchdog
+LUCI_TITLE:=LuCI Support for Watchdog
+LUCI_DEPENDS:=+luci-base
 LUCI_PKGARCH:=all
-LUCI_DEPENDS:=+luci-base +luci-lib-ip +rpcd +luci-compat
-
-PKG_MAINTAINER:=gyf1995
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
-define Package/$(PKG_NAME)
-  SECTION:=luci
-  CATEGORY:=LuCI
-  SUBMENU:=3. Applications
-  TITLE:=$(LUCI_TITLE)
-  DEPENDS:=$(LUCI_DEPENDS)
-  MAINTAINER:=$(PKG_MAINTAINER)
-  PKGARCH:=$(LUCI_PKGARCH)
-endef
-
-define Package/$(PKG_NAME)/description
-  iStoreOS Watchdog LuCI Application with Chinese localization support.
-endef
-
-# =======================================================
-# 🔥 生成 LMO 翻译文件
-# =======================================================
+# LMO 编译支持
 define Build/Prepare
-	po2lmo ./po/zh-cn/watchdog.po ./po/zh-cn/watchdog.zh-cn.lmo
-endef
-
-# LuCI 前端不需要编译
-define Build/Compile
-	true
+	$(call Build/Prepare/Default)
+	po2lmo ./po/zh-cn/watchdog.po $(PKG_BUILD_DIR)/watchdog.zh-cn.lmo
 endef
 
 define Package/$(PKG_NAME)/install
-	# 页面资源
-	$(INSTALL_DIR) $(1)/usr/share/luci/luci-static/resources/view/watchdog
-	$(CP) ./htdocs/luci-static/resources/view/watchdog/* $(1)/usr/share/luci/luci-static/resources/view/watchdog/
+	$(call Package/luci/install/template,$(1))
 
-	# 菜单配置
+	# 菜单
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-watchdog.json $(1)/usr/share/luci/menu.d/
 
@@ -53,13 +29,11 @@ define Package/$(PKG_NAME)/install
 
 	# API
 	$(INSTALL_DIR) $(1)/usr/share/watchdog/api
-	$(CP) ./root/usr/share/watchdog/api/* $(1)/usr/share/watchdog/api/
+	cp -fpR ./root/usr/share/watchdog/api/* $(1)/usr/share/watchdog/api/
 
-	# =======================================================
-	# 🔥 安装 LMO 翻译文件
-	# =======================================================
+	# LMO 翻译
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
-	$(INSTALL_DATA) ./po/zh-cn/watchdog.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/watchdog.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
